@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { errorMessage } from '../utils/errors'
 import { getCurrentUser } from '../api/auth'
 import { listTickets, TicketPage } from '../api/tickets'
 import StatusBadge from '../components/StatusBadge'
@@ -15,7 +16,7 @@ export default function TicketsPage() {
   useEffect(() => {
     listTickets(status, page)
       .then(setData)
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(errorMessage(err)))
   }, [status, page])
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
