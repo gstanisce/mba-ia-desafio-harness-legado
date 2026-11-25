@@ -33,7 +33,7 @@ for (const p of pastas) {
   const id = p.name.split('-')[0]
   const criados = []
   for (const modelo of arquivosModelo(path.join(BASE, p.name, 'arquivos'))) {
-    const rel = path.relative(path.join(BASE, p.name, 'arquivos'), modelo).replace(/\.modelo$/, '')
+    const rel = path.relative(path.join(BASE, p.name, 'arquivos'), modelo).split(path.sep).join('/').replace(/\.modelo$/, '')
     const destino = path.join(ROOT, rel)
     if (fs.existsSync(destino)) {
       console.log(`${id}: PULADA, ${rel} já existe no repositório`)
