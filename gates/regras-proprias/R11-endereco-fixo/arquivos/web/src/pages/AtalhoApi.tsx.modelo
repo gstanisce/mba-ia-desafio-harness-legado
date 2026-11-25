@@ -1,0 +1,6 @@
+// Exemplo de violação da R11: endereço fixo da API numa página (deveria vir de web/src/config/env.ts)
+export const ENDERECO_DA_API = 'http://localhost:4000'
+
+export default function AtalhoApi() {
+  return <a href={ENDERECO_DA_API}>API</a>
+}

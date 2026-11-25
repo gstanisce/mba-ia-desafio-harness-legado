@@ -1,0 +1,4 @@
+// Exemplo de violação da R12: service novo sem contagem-extra.test.ts ao lado
+export function contarAbertos(status: string[]): number {
+  return status.filter((s) => s === 'open').length
+}
