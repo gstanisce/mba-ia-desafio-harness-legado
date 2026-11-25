@@ -9,7 +9,9 @@
 import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import net from 'node:net'
+import os from 'node:os'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
 export const WIN = process.platform === 'win32'
@@ -86,6 +88,50 @@ export async function claimSlot() {
     return n
   }
   fail('não achei slot livre (50 cópias já registradas ou portas ocupadas).')
+}
+
+// Registro global: toda cópia que subiu fica listada aqui, em qualquer repositório da máquina.
+// É ele que decide se o Postgres compartilhado pode parar (o registro de slots é por .git).
+const GLOBAL_COPIES = path.join(os.homedir(), '.balcao', 'copias')
+
+export function registerCopy() {
+  fs.mkdirSync(GLOBAL_COPIES, { recursive: true })
+  const file = path.join(GLOBAL_COPIES, `${crypto.createHash('sha256').update(ROOT).digest('hex').slice(0, 16)}.json`)
+  fs.writeFileSync(file, JSON.stringify({ path: ROOT }, null, 2))
+}
+
+export function unregisterCopy(root = ROOT) {
+  const file = path.join(GLOBAL_COPIES, `${crypto.createHash('sha256').update(root).digest('hex').slice(0, 16)}.json`)
+  fs.rmSync(file, { force: true })
+}
+
+// Outras cópias da máquina com algum processo vivo (PIDs gravados em <cópia>/.balcao/run).
+export function copiesRunningElsewhere() {
+  if (!fs.existsSync(GLOBAL_COPIES)) return []
+  const vivas = []
+  for (const f of fs.readdirSync(GLOBAL_COPIES)) {
+    let copia
+    try {
+      copia = JSON.parse(fs.readFileSync(path.join(GLOBAL_COPIES, f), 'utf8')).path
+    } catch {
+      continue
+    }
+    if (copia === ROOT) continue
+    if (!fs.existsSync(copia)) {
+      fs.rmSync(path.join(GLOBAL_COPIES, f), { force: true })
+      continue
+    }
+    const algum = ['api', 'worker', 'web'].some((n) => {
+      try {
+        const pid = Number(fs.readFileSync(path.join(copia, '.balcao', 'run', `${n}.pid`), 'utf8').trim())
+        return isAlive(pid)
+      } catch {
+        return false
+      }
+    })
+    if (algum) vivas.push(copia)
+  }
+  return vivas
 }
 
 export function writeInstance(info) {

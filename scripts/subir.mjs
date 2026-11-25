@@ -31,6 +31,7 @@ import {
   waitHttp,
   waitPostgres,
   writeInstance,
+  registerCopy,
 } from './lib/balcao.mjs'
 
 const major = Number(process.versions.node.split('.')[0])
@@ -125,6 +126,7 @@ await startIfNeeded('web', async () => {
 // 7. Hook do Git: roda os gates antes de cada commit nesta cópia
 log('\n[7/7] Hook de commit')
 hookPath()
+registerCopy()
 
 const aiMode = readEnvValue(envFile, 'AI_MODE') || 'fake'
 log(`
@@ -182,6 +184,12 @@ function installIfNeeded(dir) {
   const rel = path.relative(ROOT, dir) || '.'
   if (atual === hash) {
     log(`  ${rel}: dependências em dia.`)
+    return
+  }
+  // npm ci apaga node_modules; com a cópia no ar, o engine do Prisma está travado no Windows
+  const noAr = ['api', 'worker', 'web'].some((n) => isAlive(readPid(n)))
+  if (noAr) {
+    log(`  ${rel}: aviso: o marcador de dependências não bate, mas a cópia está no ar. Mantenho as dependências; derrube e suba de novo para reinstalar.`)
     return
   }
   log(`  ${rel}: npm ci ...`)
