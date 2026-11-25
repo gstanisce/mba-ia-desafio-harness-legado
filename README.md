@@ -153,7 +153,8 @@ Desenvolvido e validado no Windows com Node nativo e Docker no WSL:
 
 - clone novo: subida sobe tudo; rodar de novo não quebra;
 - duas cópias ao mesmo tempo: portas, banco e anexos separados, triagem isolada por cópia, caixa-preta 51/51 nas duas;
-- derrubar uma cópia não afeta a outra, e a subida dela volta sem erro;
+- derrubar uma cópia não afeta a outra (o Postgres só para quando nenhuma cópia da máquina está no ar), e a subida dela volta sem erro;
+- clone novo em pasta nova: a subida sobe sozinha num slot livre; caixa-preta 51/51;
 - kit de gates do curso: 19 de 19 violações barradas;
 - hook: bloqueia erro de tipo e variável sem uso.
 
