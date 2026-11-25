@@ -158,7 +158,7 @@ Desenvolvido e validado no Windows com Node nativo e Docker no WSL:
 - kit de gates do curso: 19 de 19 violações barradas;
 - hook: bloqueia erro de tipo e variável sem uso.
 
-Ainda não validado: execução em Linux e macOS (o Node do WSL não pôde ser instalado neste ambiente). Os scripts são Node puro e não dependem de shell, mas esse caminho precisa ser testado antes da entrega final.
+> **Nota: testado somente no Windows.** Por falta de outros ambientes, a subida, o derrubar, os gates e o hook só foram executados no Windows (Node nativo e Docker no WSL). Não há validação em Linux nem em macOS. Os scripts são Node puro e não dependem de shell, mas esse caminho precisa ser testado antes de usar em outro sistema.
 
 ## Registro de incidentes
 
