@@ -30,4 +30,4 @@ Erros reais de agentes e de ferramentas durante a montagem do harness. Cada entr
 
 - **O que aconteceu.** Um script `node -e` que deveria trocar os tipos dos testes de `ticket-service` não casou nenhum trecho (problema de escape no shell) e não avisou. O arquivo continuou com `any`, que a G2 barraria no commit.
 - **Mudança no harness.** A regra "edite com a ferramenta de edição, não com scripts de substituição" foi escrita no `AGENTS.md`. Os gates continuam barrando `any` (G2) e, com o hook, nenhum commit com o defeito entra.
-- **Commit.** o commit `docs: AGENTS.md com regra de edição (I-05)`, cujo hash está na seção de registro do histórico.
+- **Commit.** `80a5203`
