@@ -41,13 +41,14 @@ export function checkG1() {
       cwd: ROOT,
       encoding: 'utf8',
     })
-    const lines = (res.stdout || '').split('\n')
+    // tsc imprime caminhos relativos ao cwd (a raiz) e pode terminar linhas com \r no Windows
+    const lines = (res.stdout || '').split(/\r?\n/)
     let achou = false
     for (const line of lines) {
       const m = line.match(/^(.+?)\((\d+),(\d+)\): error (TS\d+): (.*)$/)
       if (!m) continue
       achou = true
-      const file = rel(path.resolve(ROOT, pkg, m[1]))
+      const file = rel(path.resolve(ROOT, m[1]))
       out.push({ id: 'G1', file, detail: `linha ${m[2]}: ${m[4]} ${m[5]}` })
     }
     if (res.status !== 0 && !achou) {
