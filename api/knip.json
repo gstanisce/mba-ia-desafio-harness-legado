@@ -1,0 +1,4 @@
+{
+  "entry": ["src/main.ts", "src/jobs/triage-worker.ts", "prisma/seed.ts", "test/integration/*.test.ts"],
+  "project": ["src/**/*.ts", "test/**/*.ts", "prisma/**/*.ts"]
+}

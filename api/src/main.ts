@@ -1,7 +1,6 @@
 import { app } from './http/app'
+import { config } from './config/env'
 
-const port = process.env.PORT || 4000
-
-app.listen(port, () => {
-  console.log(`API rodando em http://localhost:${port}`)
+app.listen(config.port, () => {
+  console.log(`API rodando em http://localhost:${config.port}`)
 })

@@ -1,28 +1,25 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
-import type { Request } from 'express'
-import { HttpError } from '../http/errors'
-import { CurrentUser } from '../domain/ticket'
-import { AttachmentRepository } from '../repositories/attachment-repository'
-import { TicketService } from './ticket-service'
-
-const uploadDir = process.env.UPLOAD_DIR || '/tmp/balcao/uploads'
+import { HttpError } from '../domain/errors'
+import { CurrentUser, UploadedFile } from '../domain/ticket'
+import type { AttachmentRepository } from '../repositories/attachment-repository'
+import type { TicketService } from './ticket-service'
 
 const MAX_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'application/pdf', 'text/plain']
 
 export class AttachmentService {
+  // uploadDir chega por parâmetro (vem da config): o service não lê o ambiente
   constructor(
     private attachments: AttachmentRepository,
     private tickets: TicketService,
+    private uploadDir: string,
   ) {}
 
-  async upload(req: Request, ticketId: string) {
-    const user: CurrentUser = (req as any).user
+  async upload(user: CurrentUser, ticketId: string, file: UploadedFile | undefined) {
     await this.tickets.getById(user, ticketId)
 
-    const file = req.file
     if (!file) {
       throw new HttpError(422, 'validation_error', 'Envie o arquivo no campo file')
     }
@@ -33,9 +30,9 @@ export class AttachmentService {
       throw new HttpError(415, 'unsupported_type', 'Tipo de arquivo não suportado')
     }
 
-    fs.mkdirSync(uploadDir, { recursive: true })
+    fs.mkdirSync(this.uploadDir, { recursive: true })
     const storedName = crypto.randomUUID() + path.extname(file.originalname)
-    fs.writeFileSync(path.join(uploadDir, storedName), file.buffer)
+    fs.writeFileSync(path.join(this.uploadDir, storedName), file.buffer)
 
     return this.attachments.create({
       ticketId,
@@ -54,9 +51,9 @@ export class AttachmentService {
     }
     try {
       await this.tickets.getById(user, attachment.ticketId)
-    } catch (err) {
+    } catch {
       throw new HttpError(404, 'not_found', 'Anexo não encontrado')
     }
-    return { attachment, filePath: path.join(uploadDir, attachment.storedName) }
+    return { attachment, filePath: path.join(this.uploadDir, attachment.storedName) }
   }
 }

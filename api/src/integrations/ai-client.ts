@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import { config } from '../config/env'
 import { TICKET_CATEGORIES, TICKET_PRIORITIES, TicketCategory, TicketPriority } from '../domain/ticket'
 
 export type Classification = {
@@ -12,6 +13,8 @@ type TicketInput = {
 }
 
 const MODEL = 'gpt-4o-mini'
+
+// único lugar do projeto que importa o pacote openai (G7)
 
 function normalize(text: string) {
   return text
@@ -48,7 +51,7 @@ export function suggestReplyFake(input: { customerName: string; title: string })
 }
 
 function openaiClient() {
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  return new OpenAI({ apiKey: config.openaiApiKey })
 }
 
 async function classifyWithOpenAI(ticket: TicketInput): Promise<Classification> {
@@ -65,30 +68,34 @@ async function classifyWithOpenAI(ticket: TicketInput): Promise<Classification> 
       { role: 'user', content: `Título: ${ticket.title}\n\nDescrição: ${ticket.description}` },
     ],
   })
-  const data = JSON.parse(completion.choices[0].message.content || '{}')
-  if (!TICKET_CATEGORIES.includes(data.category) || !TICKET_PRIORITIES.includes(data.priority)) {
+  const data: { category?: unknown; priority?: unknown } = JSON.parse(completion.choices[0].message.content || '{}')
+  if (!TICKET_CATEGORIES.includes(data.category as TicketCategory) || !TICKET_PRIORITIES.includes(data.priority as TicketPriority)) {
     throw new Error('resposta da IA fora do formato')
   }
-  return { category: data.category, priority: data.priority }
+  return { category: data.category as TicketCategory, priority: data.priority as TicketPriority }
 }
 
 export async function classifyTicket(ticket: TicketInput): Promise<Classification> {
-  if (process.env.AI_MODE === 'openai') {
+  if (config.aiMode === 'openai') {
     return classifyWithOpenAI(ticket)
   }
   return classifyFake(ticket)
 }
 
-export async function suggestReply(input: { customerName: string; title: string; description: string }) {
-  if (process.env.AI_MODE === 'openai') {
+// prompt unificado (o mesmo que a rota de sugestão já usava)
+export async function suggestReply(input: { customerName: string; title: string; description: string }): Promise<string | null> {
+  if (config.aiMode === 'openai') {
     const completion = await openaiClient().chat.completions.create({
       model: MODEL,
       messages: [
-        { role: 'system', content: 'Você é um atendente de suporte educado. Escreva uma resposta curta em português.' },
+        {
+          role: 'system',
+          content: 'Você é um atendente de suporte. Escreva uma resposta curta e educada, em português, para o chamado.',
+        },
         { role: 'user', content: `Cliente: ${input.customerName}\nTítulo: ${input.title}\n\n${input.description}` },
       ],
     })
-    return completion.choices[0].message.content || ''
+    return completion.choices[0].message.content
   }
   return suggestReplyFake(input)
 }

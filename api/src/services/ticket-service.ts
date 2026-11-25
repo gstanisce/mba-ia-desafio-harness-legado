@@ -1,11 +1,11 @@
 import { z } from 'zod'
-import { HttpError } from '../http/errors'
+import { HttpError } from '../domain/errors'
 import { CurrentUser, Ticket, TICKET_STATUSES, TicketStatus } from '../domain/ticket'
-import { TicketRepository } from '../repositories/ticket-repository'
-import { ReplyRepository } from '../repositories/reply-repository'
+import type { TicketRepository } from '../repositories/ticket-repository'
+import type { ReplyRepository } from '../repositories/reply-repository'
 import { notifyAssignee } from './notification-service'
 
-export const PAGE_SIZE = 20
+const PAGE_SIZE = 20
 
 const createTicketSchema = z.object({
   title: z.string().trim().min(3, 'Título deve ter entre 3 e 120 caracteres').max(120, 'Título deve ter entre 3 e 120 caracteres'),
@@ -20,16 +20,8 @@ const replySchema = z.object({
   body: z.string().trim().min(1, 'A resposta não pode ser vazia').max(5000, 'A resposta pode ter no máximo 5000 caracteres'),
 })
 
-export function formatTicketRef(ticket: { id: string; title: string }) {
-  return `#${ticket.id.slice(0, 8)} (${ticket.title})`
-}
-
-const SLA_HOURS = { urgent: 4, high: 8, medium: 24, low: 72 }
-
-export function calculateSlaDeadline(ticket: Pick<Ticket, 'createdAt' | 'priority'>) {
-  const hours = SLA_HOURS[ticket.priority || 'medium']
-  return new Date(ticket.createdAt.getTime() + hours * 60 * 60 * 1000)
-}
+// query da listagem como chega da URL: qualquer coisa, validada aqui
+export type TicketListQuery = { status?: unknown; page?: unknown }
 
 export class TicketService {
   constructor(
@@ -48,15 +40,15 @@ export class TicketService {
     return this.tickets.create({ ...parsed.data, customerId: user.id })
   }
 
-  async list(user: CurrentUser, query: { status?: string; page?: string }) {
+  async list(user: CurrentUser, query: TicketListQuery) {
     let status: TicketStatus | undefined
     if (query.status) {
-      if (!TICKET_STATUSES.includes(query.status as TicketStatus)) {
+      if (typeof query.status !== 'string' || !TICKET_STATUSES.includes(query.status as TicketStatus)) {
         throw new HttpError(422, 'validation_error', 'Status inválido')
       }
       status = query.status as TicketStatus
     }
-    const page = Math.max(1, parseInt(query.page || '1', 10) || 1)
+    const page = Math.max(1, parseInt(String(query.page || '1'), 10) || 1)
     const filter = user.role === 'customer' ? { customerId: user.id, status } : { status }
     const { items, total } = await this.tickets.list(filter, page, PAGE_SIZE)
     return { items, page, pageSize: PAGE_SIZE, total }
@@ -72,7 +64,11 @@ export class TicketService {
 
   async getDetails(user: CurrentUser, id: string) {
     await this.getById(user, id)
-    return this.tickets.findByIdWithDetails(id)
+    const details = await this.tickets.findByIdWithDetails(id)
+    if (!details) {
+      throw new HttpError(404, 'not_found', 'Chamado não encontrado')
+    }
+    return details
   }
 
   async assign(user: CurrentUser, id: string) {

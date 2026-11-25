@@ -1,7 +1,11 @@
 import { PrismaClient } from '@prisma/client'
-import { env } from '../config/env'
+import { config } from '../config/env'
+
+if (!config.databaseUrl) {
+  throw new Error('DATABASE_URL não definida: rode pelo ./subir ou defina no api/.env')
+}
 
 export const prisma = new PrismaClient({
-  datasources: { db: { url: env.DATABASE_URL } },
-  log: env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+  datasources: { db: { url: config.databaseUrl } },
+  log: config.nodeEnv === 'development' ? ['warn', 'error'] : ['error'],
 })

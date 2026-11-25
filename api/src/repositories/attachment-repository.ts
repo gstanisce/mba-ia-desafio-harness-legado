@@ -1,7 +1,7 @@
-import { Attachment } from '@prisma/client'
 import { prisma } from './prisma'
+import { AttachmentRecord } from '../domain/ticket'
 
-export type NewAttachment = {
+type NewAttachment = {
   ticketId: string
   uploaderId: string
   originalName: string
@@ -11,11 +11,11 @@ export type NewAttachment = {
 }
 
 export interface AttachmentRepository {
-  create(data: NewAttachment): Promise<Attachment>
-  findById(id: string): Promise<Attachment | null>
+  create(data: NewAttachment): Promise<AttachmentRecord>
+  findById(id: string): Promise<AttachmentRecord | null>
 }
 
-export class PrismaAttachmentRepository implements AttachmentRepository {
+class PrismaAttachmentRepository implements AttachmentRepository {
   create(data: NewAttachment) {
     return prisma.attachment.create({ data })
   }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { TicketService, formatTicketRef } from './ticket-service'
-import { HttpError } from '../http/errors'
-import { CurrentUser, Ticket } from '../domain/ticket'
+import { TicketService } from './ticket-service'
+import { HttpError } from '../domain/errors'
+import { CurrentUser, ReplyRecord, Ticket, formatTicketRef } from '../domain/ticket'
 import { TicketFilter, TicketRepository, TicketUpdate } from '../repositories/ticket-repository'
 import { ReplyRepository } from '../repositories/reply-repository'
 
@@ -54,10 +54,15 @@ class FakeTicketRepository implements TicketRepository {
 }
 
 class FakeReplyRepository implements ReplyRepository {
-  items: any[] = []
+  items: ReplyRecord[] = []
 
   async create(data: { ticketId: string; authorId: string; body: string }) {
-    const reply = { id: `reply-${this.items.length + 1}`, ...data, createdAt: new Date() }
+    const reply: ReplyRecord = {
+      id: `reply-${this.items.length + 1}`,
+      ...data,
+      createdAt: new Date(),
+      author: { id: data.authorId, name: 'Autor', role: 'customer' },
+    }
     this.items.push(reply)
     return reply
   }
@@ -70,10 +75,9 @@ const otherAgent: CurrentUser = { id: 'a2', role: 'agent' }
 const admin: CurrentUser = { id: 'adm', role: 'admin' }
 
 async function expectHttpError(promise: Promise<unknown>, status: number, code: string) {
-  const err: any = await promise.catch((e) => e)
+  const err = await promise.catch((e: unknown) => e)
   expect(err).toBeInstanceOf(HttpError)
-  expect(err.status).toBe(status)
-  expect(err.code).toBe(code)
+  expect(err).toMatchObject({ status, code })
 }
 
 describe('TicketService', () => {
@@ -116,6 +120,11 @@ describe('TicketService', () => {
     const all = await service.list(agent, {})
     expect(all.total).toBe(2)
     expect(all.pageSize).toBe(20)
+  })
+
+  it('recusa status inválido na listagem', async () => {
+    await expectHttpError(service.list(agent, { status: 'qualquer' }), 422, 'validation_error')
+    await expectHttpError(service.list(agent, { status: ['open', 'resolved'] }), 422, 'validation_error')
   })
 
   it('cliente recebe 404 no chamado de outro cliente', async () => {

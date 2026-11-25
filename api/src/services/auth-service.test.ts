@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { AuthService, EmailTakenError, InvalidCredentialsError } from './auth-service'
-import { NewUser, UserRepository } from '../repositories/user-repository'
+import { HttpError } from '../domain/errors'
+import { UserRecord } from '../domain/ticket'
+import type { NewUser, UserRepository } from '../repositories/user-repository'
 
 class FakeUserRepository implements UserRepository {
-  users: any[] = []
+  users: UserRecord[] = []
 
   async findById(id: string) {
     return this.users.find((u) => u.id === id) || null
@@ -13,8 +15,8 @@ class FakeUserRepository implements UserRepository {
     return this.users.find((u) => u.email === email) || null
   }
 
-  async create(data: NewUser): Promise<any> {
-    const user = { id: `u${this.users.length + 1}`, role: 'customer', createdAt: new Date(), ...data }
+  async create(data: NewUser): Promise<UserRecord> {
+    const user: UserRecord = { id: `u${this.users.length + 1}`, role: 'customer', createdAt: new Date(), ...data }
     this.users.push(user)
     return user
   }
@@ -43,5 +45,14 @@ describe('AuthService', () => {
     await expect(service.login({ email: 'maria@x.com', password: 'errada123' })).rejects.toBeInstanceOf(
       InvalidCredentialsError,
     )
+  })
+
+  it('me devolve o usuário logado e 401 quando ele não existe', async () => {
+    const repo = new FakeUserRepository()
+    const service = new AuthService(repo)
+    await service.register({ name: 'Maria', email: 'maria@x.com', password: '12345678' })
+    expect(await service.me('u1')).toEqual({ id: 'u1', name: 'Maria', email: 'maria@x.com', role: 'customer' })
+    await expect(service.me('nao-existe')).rejects.toMatchObject({ status: 401, code: 'unauthorized' })
+    await expect(service.me('nao-existe')).rejects.toBeInstanceOf(HttpError)
   })
 })

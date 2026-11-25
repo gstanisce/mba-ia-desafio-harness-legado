@@ -1,77 +1,78 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Role, TicketStatus, TicketCategory, TicketPriority, TriageStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+// Seed idempotente: pode rodar quantas vezes for preciso. Usuários são identificados
+// pelo e-mail e chamados pelo título do cliente; o que já existe não é duplicado.
+async function ensureUser(name: string, email: string, password: string, role: Role) {
+  const existing = await prisma.user.findUnique({ where: { email } })
+  if (existing) return existing
+  return prisma.user.create({
+    data: { name, email, passwordHash: await bcrypt.hash(password, 10), role },
+  })
+}
+
+async function ensureTicket(
+  title: string,
+  customerId: string,
+  data: {
+    description: string
+    status?: TicketStatus
+    category?: TicketCategory
+    priority?: TicketPriority
+    triageStatus?: TriageStatus
+    assigneeId?: string
+    replies?: { authorId: string; body: string }[]
+  },
+) {
+  const existing = await prisma.ticket.findFirst({ where: { title, customerId } })
+  if (existing) return existing
+  return prisma.ticket.create({
+    data: {
+      title,
+      description: data.description,
+      status: data.status,
+      category: data.category,
+      priority: data.priority,
+      triageStatus: data.triageStatus,
+      customerId,
+      assigneeId: data.assigneeId,
+      replies: data.replies ? { create: data.replies } : undefined,
+    },
+  })
+}
+
 async function main() {
-  const admin = await prisma.user.create({
-    data: {
-      name: 'Admin',
-      email: 'admin@balcao.dev',
-      passwordHash: await bcrypt.hash('Admin@123', 10),
-      role: 'admin',
-    },
+  const admin = await ensureUser('Admin', 'admin@balcao.dev', 'Admin@123', 'admin')
+  const agent = await ensureUser('Ana Atendente', 'agente@balcao.dev', 'Agente@123', 'agent')
+  const customer = await ensureUser('Carlos Cliente', 'cliente@balcao.dev', 'Cliente@123', 'customer')
+
+  await ensureTicket('Não consigo emitir a segunda via do boleto', customer.id, {
+    description: 'Quando clico em segunda via aparece uma tela em branco. Preciso pagar até sexta.',
   })
 
-  const agent = await prisma.user.create({
-    data: {
-      name: 'Ana Atendente',
-      email: 'agente@balcao.dev',
-      passwordHash: await bcrypt.hash('Agente@123', 10),
-      role: 'agent',
-    },
+  await ensureTicket('Erro ao salvar o perfil', customer.id, {
+    description: 'Ao alterar o telefone no perfil aparece a mensagem "erro inesperado".',
+    status: 'in_progress',
+    category: 'technical',
+    priority: 'medium',
+    triageStatus: 'done',
+    assigneeId: agent.id,
+    replies: [{ authorId: agent.id, body: 'Oi, Carlos! Já estamos olhando o problema.' }],
   })
 
-  const customer = await prisma.user.create({
-    data: {
-      name: 'Carlos Cliente',
-      email: 'cliente@balcao.dev',
-      passwordHash: await bcrypt.hash('Cliente@123', 10),
-      role: 'customer',
-    },
-  })
-
-  await prisma.ticket.create({
-    data: {
-      title: 'Não consigo emitir a segunda via do boleto',
-      description: 'Quando clico em segunda via aparece uma tela em branco. Preciso pagar até sexta.',
-      customerId: customer.id,
-    },
-  })
-
-  await prisma.ticket.create({
-    data: {
-      title: 'Erro ao salvar o perfil',
-      description: 'Ao alterar o telefone no perfil aparece a mensagem "erro inesperado".',
-      status: 'in_progress',
-      category: 'technical',
-      priority: 'medium',
-      triageStatus: 'done',
-      customerId: customer.id,
-      assigneeId: agent.id,
-      replies: {
-        create: [{ authorId: agent.id, body: 'Oi, Carlos! Já estamos olhando o problema.' }],
-      },
-    },
-  })
-
-  await prisma.ticket.create({
-    data: {
-      title: 'Dúvida sobre troca de senha',
-      description: 'Qual o tamanho mínimo de senha que o sistema aceita?',
-      status: 'resolved',
-      category: 'account',
-      priority: 'low',
-      triageStatus: 'done',
-      customerId: customer.id,
-      assigneeId: agent.id,
-      replies: {
-        create: [
-          { authorId: agent.id, body: 'A senha precisa ter pelo menos 8 caracteres.' },
-          { authorId: customer.id, body: 'Obrigado!' },
-        ],
-      },
-    },
+  await ensureTicket('Dúvida sobre troca de senha', customer.id, {
+    description: 'Qual o tamanho mínimo de senha que o sistema aceita?',
+    status: 'resolved',
+    category: 'account',
+    priority: 'low',
+    triageStatus: 'done',
+    assigneeId: agent.id,
+    replies: [
+      { authorId: agent.id, body: 'A senha precisa ter pelo menos 8 caracteres.' },
+      { authorId: customer.id, body: 'Obrigado!' },
+    ],
   })
 
   console.log(`seed ok: ${admin.email}, ${agent.email}, ${customer.email}`)
