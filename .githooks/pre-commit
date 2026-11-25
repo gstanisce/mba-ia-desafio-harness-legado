@@ -1,0 +1,17 @@
+#!/bin/sh
+# Hook do Git: roda os gates antes de cada commit e bloqueia o commit se algum falhar.
+# Entre os gates estão G1 (erro de tipo, tsc) e G2 (lint: variável ou import sem uso,
+# any explícito), além de G3 a G10. Para pular em emergência: git commit --no-verify
+# (não recomendado: o CI local do Balcão é este hook).
+set -e
+cd "$(git rev-parse --show-toplevel)"
+if [ ! -d node_modules ]; then
+  echo "pre-commit: node_modules da raiz não existe. Rode: node scripts/subir.mjs" >&2
+  exit 1
+fi
+echo "pre-commit: rodando gates (G1 tipos e G2 lint incluídos)..."
+if ! node scripts/gates/run.mjs; then
+  echo "" >&2
+  echo "Commit bloqueado: corrija as violações acima e tente de novo." >&2
+  exit 1
+fi

@@ -1,3 +1,7 @@
+# Um Postgres para todas as cópias do Balcão. O nome fixo do projeto faz as
+# worktrees compartilharem este container; cada cópia usa o seu próprio banco.
+name: balcao
+
 services:
   db:
     image: postgres:16
